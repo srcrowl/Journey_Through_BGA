@@ -1,0 +1,5 @@
+numpy==1.26.*
+pandas==2.2.*
+shillelagh==1.2.*
+shillelagh[gsheetsapi]
+hydralit-components==1.0.*
