@@ -39,10 +39,10 @@ if menu == 'Summary':
     col1.write(f"We most recently finished playing {finished['Game']}")
     col1.write(f"{finished['Who Won']} Won!")
     col2.subheader("Sam's Review")
-    col2.write(f"Rating = {finished["Sam's Rating"]}")
+    col2.write(f"Rating = {finished['Sam\'s Rating']}")
     col2.write(f"{finished["Sam's Review"]}")
     col3.subheader("Gabi's Review")
-    col3.write(f"Rating = {finished["Gabi's Rating"]}")
+    col3.write(f"Rating = {finished['Gabi\'s Rating']}")
     col3.write(f"{finished['Gabi\'s Review']}")
 
     #st.write(f"Here's what we are playing now: {playing}")
