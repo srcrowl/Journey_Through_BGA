@@ -111,9 +111,9 @@ if menu == 'Reviews':
     st.write(f"Consensus Rating = {consensus}")
     col1, col2 = st.columns(2)
     col1.subheader("Sam's Review")
-    col1.write(f"Rating = {game_data['Sam\'s Rating']}")
+    col1.write(f"Rating = " + game_data["Sam's Rating"])
     col1.write(game_data["Sam's Review"])
 
     col2.subheader("Gabi's Review")
-    col2.write(f"Rating = {game_data['Gabi\'s Rating']}")
+    col2.write(f"Rating = " + game_data["Gabi's Rating"])
     col2.write(game_data["Gabi's Review"])
