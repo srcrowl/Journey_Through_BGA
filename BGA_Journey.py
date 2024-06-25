@@ -40,7 +40,7 @@ if menu == 'Summary':
     col1.write(f"{finished['Who Won']} Won!")
     col2.subheader("Sam's Review")
     col2.write(f"Rating = {finished['Sam\'s Rating']}")
-    col2.write(f"{finished["Sam's Review"]}")
+    col2.write(f"{finished['Sam\'s Review']}")
     col3.subheader("Gabi's Review")
     col3.write(f"Rating = {finished['Gabi\'s Rating']}")
     col3.write(f"{finished['Gabi\'s Review']}")
@@ -58,13 +58,26 @@ if menu == 'Ratings':
 
     sorting_ratings = ratings['Consensus'].sort_values(ascending = False)
     ranked_list = ''
-    for rank, game in zip(range(1,sorting_ratings.shape[0]), sorting_ratings.index):
-        ranked_list = ranked_list + f'{rank}. {game} ({round(sorting_ratings.loc[game],2)})\n'
-        prev_rating = sorting_ratings.loc[game]
+    current_rank = 1
+    unique_ratings = sorting_ratings.unique()
+    for rank, rating in zip(range(1,len(unique_ratings)), unique_ratings):
+        games_with_rating = sorting_ratings[sorting_ratings == rating].index.values
+        if len(games_with_rating) == 1:
+            ranked_list = ranked_list + f'{rank}. {games_with_rating[0]} ({round(rating,2)})\n'
+        else:
+            for i, game in enumerate(games_with_rating):
+                #st.write(games_with_rating)
+                #if i == 0:
+                ranked_list = ranked_list + f'{rank}. {game} ({round(rating,2)})\n'
+                #else:
+                #    num_spaces = (3 if i < 10 else 4)
+                #    ranked_list = ranked_list + f'{num_spaces} {game} ({round(rating,2)})\n\n'
+        #ranked_list = ranked_list + f'{rank}. {game} ({round(sorting_ratings.loc[game],2)})\n'
+        #prev_rating = sorting_ratings.loc[game]
 
     #games ranked list
     col1, col2, col3 = st.columns(3)
-    col1.subheader('Consensed Ratings')
+    col1.subheader('Consensus Ratings')
     col1.write(ranked_list)
 
     sorting_ratings = ratings["Sam's Rating"].sort_values(ascending = False)
