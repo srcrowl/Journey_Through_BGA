@@ -1,10 +1,41 @@
 import pandas as pd 
-#import dataLoader
+import matplotlib.pyplot as plt
+from PIL import Image
 from dataLoader import loadData_results
+
+import requests
+import bs4 as bs
+
 
 import streamlit as st
 import hydralit_components as hc
 st.set_page_config(layout='wide')
+
+def get_thumbnail(game):
+    """
+    Use BGG api to extract the thumbnail for a game
+    """
+    game = game.replace(' ', '%20')
+    url = f'https://boardgamegeek.com/xmlapi2/search?query={game}&type=boardgame&exact=1'
+
+    response = requests.get(url)
+    soup = bs.BeautifulSoup(response.text, 'xml')
+
+    game = soup.find_all('items')[0]
+    info = []
+    for child in game.children:
+        if child != '\n' and child != ' ':
+            game_id = child.attrs['id']
+    url = f"https://boardgamegeek.com/xmlapi/boardgame/{game_id}?stats=1"
+    response = requests.get(url)
+    soup = bs.BeautifulSoup(response.text, 'xml')
+    #extract game info from xml
+    game_info = soup.find_all('boardgame')
+
+    #extract the thumbnail
+    link = game_info[0].find('thumbnail').text
+    im = Image.open(requests.get(link, stream=True).raw)
+    return im
 
 if 'Results' not in st.session_state:
     st.session_state['Results'] = loadData_results()
@@ -33,10 +64,47 @@ if menu == 'Summary':
     col3.metric("Gabi's Wins", st.session_state['Results'][st.session_state['Results']['Who Won'] == 'Gabi'].shape[0], 0)
     finished = st.session_state['Results'].sort_values('When finished', ascending = False).iloc[0]
 
-    st.header('Our Most Recent Game')
+    #st.header('Games played each month')
+
+    results = st.session_state['Results'].dropna(subset = 'When finished').copy()
+    results['When finished'] = pd.to_datetime(results['When finished'])
+    results['Month of Play'] = results['When finished'].dt.month
+    month_dict = {1: 'January', 2: 'February', 3: 'March', 4:'April',5:'May',6:'June',7:'July', 8:'August', 9:'September', 10:'October', 11:'November', 12:'December'}
+    results = results.sort_values('Month of Play')
+    results['Month of Play'] = results['Month of Play'].map(month_dict)
+    num_per_month = results.groupby('Month of Play').size()
+    #reorder
+    month = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    num_per_month = num_per_month.loc[[m for m in month if m in num_per_month.index]]
+
+    fig, ax = plt.subplots(figsize = (10, 2))
+    ax.bar(num_per_month.index, num_per_month.values, color = 'gray', edgecolor = 'black', width = 1)
+    ax.tick_params(axis = 'x', rotation = 0)
+    ax.set_ylabel('Number of\nGames Played')
+    ax.set_title('Games Played Each Month')
+
+    #annotate each bar with the games played 
+    for i, v in enumerate(num_per_month.index):
+        #grab the games played that month
+        games_played = results[results['Month of Play'] == v].sort_values('When finished')['Game'].values
+        for j, game in enumerate(games_played):
+            ax.text(i, num_per_month.values[i] - j-0.1, game, ha = 'center', va = 'top', fontsize = 6)
+    ax.set_xlim(-0.5, num_per_month.shape[0]-0.5)
+    st.pyplot(fig)
+
+    #st.bar_chart(num_per_month)
+    #st.write(f"Here's what we are playing now: {playing}")
+
+
+    st.header(f"Our Most Recent Game = {finished['Game']}")
     playing = ';'.join(st.session_state['Results'][st.session_state['Results']['When finished'].isna()]['Game'].values)
     col1, col2, col3 = st.columns(3)
-    col1.write(f"We most recently finished playing {finished['Game']}")
+
+    #get the game id from boardgamegeek to extract the thumbnail
+    if 'thumbnail' not in st.session_state:
+        st.session_state['thumbnail'] = get_thumbnail(finished['Game'])
+    #col1.subheader(f"{finished['Game']}")
+    col1.image(st.session_state['thumbnail'])
     col1.write(f"{finished['Who Won']} Won!")
     col2.subheader("Sam's Review")
     col2.write("Rating = "+ str(finished["Sam's Rating"]))
@@ -45,8 +113,7 @@ if menu == 'Summary':
     col3.write("Rating = " + str(finished["Gabi's Rating"]))
     col3.write(finished["Gabi's Review"])
 
-    #st.write(f"Here's what we are playing now: {playing}")
-
+    
 
 
 if menu == 'Ratings':
