@@ -23,19 +23,25 @@ def get_thumbnail(game):
 
     game = soup.find_all('items')[0]
     info = []
+    game_id = None
     for child in game.children:
         if child != '\n' and child != ' ':
             game_id = child.attrs['id']
-    url = f"https://boardgamegeek.com/xmlapi/boardgame/{game_id}?stats=1"
-    response = requests.get(url)
-    soup = bs.BeautifulSoup(response.text, 'xml')
-    #extract game info from xml
-    game_info = soup.find_all('boardgame')
 
-    #extract the thumbnail
-    link = game_info[0].find('thumbnail').text
-    im = Image.open(requests.get(link, stream=True).raw)
-    return im
+    #if game is found, extract the thumbnail
+    if game_id is not None:
+        url = f"https://boardgamegeek.com/xmlapi/boardgame/{game_id}?stats=1"
+        response = requests.get(url)
+        soup = bs.BeautifulSoup(response.text, 'xml')
+        #extract game info from xml
+        game_info = soup.find_all('boardgame')
+
+        #extract the thumbnail
+        link = game_info[0].find('thumbnail').text
+        im = Image.open(requests.get(link, stream=True).raw)
+        return im
+    else:
+        return None
 
 if 'Results' not in st.session_state:
     st.session_state['Results'] = loadData_results()
@@ -104,7 +110,10 @@ if menu == 'Summary':
     if 'thumbnail' not in st.session_state:
         st.session_state['thumbnail'] = get_thumbnail(finished['Game'])
     #col1.subheader(f"{finished['Game']}")
-    col1.image(st.session_state['thumbnail'])
+    if st.session_state['thumbnail'] is not None:
+        col1.image(st.session_state['thumbnail'])
+    else:
+        col1.write("No Thumbnail Found,\ncheck name to make sure it matches BGG")
     col1.write(f"{finished['Who Won']} Won!")
     col2.subheader("Sam's Review")
     col2.write("Rating = "+ str(finished["Sam's Rating"]))
