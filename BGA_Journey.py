@@ -1,4 +1,5 @@
 import pandas as pd 
+import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 from dataLoader import loadData_results
@@ -42,6 +43,41 @@ def get_thumbnail(game):
         return im
     else:
         return None
+    
+@st.cache_data(ttl=300)
+def calculateCumulative(column = 'Who Won'):
+    #get number of wins
+    plot_data = st.session_state['Results'].copy()
+    
+    plot_data['value'] = 1
+    plot_data = plot_data.groupby([column, 'When finished'])['value'].sum().reset_index()
+    plot_data = plot_data.pivot(columns = column, index = 'When finished', values = 'value')
+    plot_data = plot_data.replace(np.nan, 0)
+    plot_data = plot_data.cumsum()
+    plot_data = plot_data[['Sam', 'Gabi']]
+    return plot_data
+
+@st.cache_data(ttl=300)
+def plotCumulative(figsize = (10,3)):
+
+    #get number of wins and games chosen
+    win_data = calculateCumulative(column = 'Who Won')
+    chose_data = calculateCumulative(column = 'Who Chose')
+
+        
+    fig, ax = plt.subplots(figsize = figsize, nrows = 2, sharex = True, sharey=True)
+    fig.subplots_adjust(hspace = 0)
+    ax[0].plot(win_data.index.values, win_data['Sam'].values, label = 'Sam', c = 'red')
+    ax[0].plot(win_data.index.values, win_data['Gabi'].values, label = 'Gabi', c = 'blue')
+    ax[0].tick_params(axis = 'x', rotation = 45)
+    ax[0].set_ylabel('Games Won')
+    ax[0].set_xlim(win_data.index.values[0], win_data.index.values[-1])
+    ax[1].plot(chose_data.index.values, chose_data['Sam'].values, label = 'Sam', c = 'red')
+    ax[1].plot(chose_data.index.values, chose_data['Gabi'].values, label = 'Gabi', c = 'blue') 
+    ax[0].legend(bbox_to_anchor = (0.55, 1.08), ncol = 2)
+    ax[1].set_ylabel('Games Chosen')
+    ax[1].tick_params(axis = 'x', rotation = 45)
+    return fig
 
 if 'Results' not in st.session_state:
     st.session_state['Results'] = loadData_results()
@@ -83,7 +119,7 @@ if menu == 'Summary':
     month = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
     num_per_month = num_per_month.loc[[m for m in month if m in num_per_month.index]]
 
-    fig, ax = plt.subplots(figsize = (10, 2))
+    fig, ax = plt.subplots(figsize = (10, 2.5))
     ax.bar(num_per_month.index, num_per_month.values, color = 'gray', edgecolor = 'black', width = 1)
     ax.tick_params(axis = 'x', rotation = 0)
     ax.set_ylabel('Number of\nGames Played')
@@ -94,9 +130,14 @@ if menu == 'Summary':
         #grab the games played that month
         games_played = results[results['Month of Play'] == v].sort_values('When finished')['Game'].values
         for j, game in enumerate(games_played):
-            ax.text(i, num_per_month.values[i] - j-0.1, game, ha = 'center', va = 'top', fontsize = 6)
+            ax.text(i, num_per_month.values[i] - j-0.1, game, ha = 'center', va = 'top', fontsize = 5)
     ax.set_xlim(-0.5, num_per_month.shape[0]-0.5)
     st.pyplot(fig)
+
+    #add cumulative wins
+    fig = plotCumulative(figsize = (10,3))
+    st.pyplot(fig)
+
 
     #st.bar_chart(num_per_month)
     #st.write(f"Here's what we are playing now: {playing}")
@@ -130,26 +171,31 @@ if menu == 'Ratings':
     reviews = st.session_state['Results'][['Game', "Sam's Review", "Gabi's Review"]].set_index('Game')
     st.header('Ratings and Reviews')
 
+    ratings_zscored = (ratings - ratings.mean())/ratings.std()
     ratings['Consensus'] = ratings.mean(axis = 1)
+    ratings['Consensus Z-Score'] = ratings_zscored.mean(axis = 1)
 
-    sorting_ratings = ratings['Consensus'].sort_values(ascending = False)
+    sorting_ratings = ratings['Consensus Z-Score'].sort_values(ascending = False)
     ranked_list = ''
     current_rank = 1
     unique_ratings = sorting_ratings.unique()
     for rank, rating in zip(range(1,len(unique_ratings)), unique_ratings):
         games_with_rating = sorting_ratings[sorting_ratings == rating].index.values
         if len(games_with_rating) == 1:
-            ranked_list = ranked_list + f'{rank}. {games_with_rating[0]} ({round(rating,2)})\n'
+            ranked_list = ranked_list + f'{rank}. ({round(rating,2)}) {games_with_rating[0]}\n'
         else:
             for i, game in enumerate(games_with_rating):
                 #st.write(games_with_rating)
-                #if i == 0:
-                ranked_list = ranked_list + f'{rank}. {game} ({round(rating,2)})\n'
-                #else:
-                #    num_spaces = (3 if i < 10 else 4)
-                #    ranked_list = ranked_list + f'{num_spaces} {game} ({round(rating,2)})\n\n'
-        #ranked_list = ranked_list + f'{rank}. {game} ({round(sorting_ratings.loc[game],2)})\n'
-        #prev_rating = sorting_ratings.loc[game]
+                if i == 0:
+                    #ranked_list = ranked_list + f'{rank}. {game} ({round(rating,2)}), \n'
+                    ranked_list = ranked_list + f'{rank}. ({round(rating,2)}) {game}'
+                elif i == len(games_with_rating) - 1:
+                    ranked_list = ranked_list + f', and {game}\n'
+                else:
+                    num_spaces = (3 if i < 10 else 4)
+                    ranked_list = ranked_list + f', {game}'
+            #ranked_list = ranked_list + f'{rank}. {game} ({round(sorting_ratings.loc[game],2)})\n'
+            #prev_rating = sorting_ratings.loc[game]
 
     #games ranked list
     col1, col2, col3 = st.columns(3)
@@ -158,18 +204,46 @@ if menu == 'Ratings':
 
     sorting_ratings = ratings["Sam's Rating"].sort_values(ascending = False)
     ranked_list = ''
-    for rank, game in zip(range(1,sorting_ratings.shape[0]), sorting_ratings.index):
-        ranked_list = ranked_list + f'{rank}. {game} ({round(sorting_ratings.loc[game],2)})\n'
-        prev_rating = sorting_ratings.loc[game]
+    current_rank = 1
+    unique_ratings = sorting_ratings.unique()
+    for rank, rating in zip(range(1,len(unique_ratings)), unique_ratings):
+        games_with_rating = sorting_ratings[sorting_ratings == rating].index.values
+        if len(games_with_rating) == 1:
+            ranked_list = ranked_list + f'{rank}. ({round(rating,2)}) {games_with_rating[0]}\n'
+        else:
+            for i, game in enumerate(games_with_rating):
+                #st.write(games_with_rating)
+                if i == 0:
+                    #ranked_list = ranked_list + f'{rank}. {game} ({round(rating,2)}), \n'
+                    ranked_list = ranked_list + f'{rank}. ({round(rating,2)}) {game}'
+                elif i == len(games_with_rating) - 1:
+                    ranked_list = ranked_list + f', and {game}\n'
+                else:
+                    num_spaces = (3 if i < 10 else 4)
+                    ranked_list = ranked_list + f', {game}'
 
     col2.subheader("Sam's Ratings")
     col2.write(ranked_list)
 
     sorting_ratings = ratings["Gabi's Rating"].sort_values(ascending = False)
     ranked_list = ''
-    for rank, game in zip(range(1,sorting_ratings.shape[0]), sorting_ratings.index):
-        ranked_list = ranked_list + f'{rank}. {game} ({round(sorting_ratings.loc[game],2)})\n'
-        prev_rating = sorting_ratings.loc[game]
+    current_rank = 1
+    unique_ratings = sorting_ratings.unique()
+    for rank, rating in zip(range(1,len(unique_ratings)), unique_ratings):
+        games_with_rating = sorting_ratings[sorting_ratings == rating].index.values
+        if len(games_with_rating) == 1:
+            ranked_list = ranked_list + f'{rank}. ({round(rating,2)}) {games_with_rating[0]}\n'
+        else:
+            for i, game in enumerate(games_with_rating):
+                #st.write(games_with_rating)
+                if i == 0:
+                    #ranked_list = ranked_list + f'{rank}. {game} ({round(rating,2)}), \n'
+                    ranked_list = ranked_list + f'{rank}. ({round(rating,2)}) {game}'
+                elif i == len(games_with_rating) - 1:
+                    ranked_list = ranked_list + f', and {game}\n'
+                else:
+                    num_spaces = (3 if i < 10 else 4)
+                    ranked_list = ranked_list + f', {game}'
     
     col3.subheader("Gabi's Ratings")
     col3.write(ranked_list)
