@@ -7,6 +7,9 @@ from dataLoader import loadData_results
 import requests
 import bs4 as bs
 
+from sklearn.preprocessing import MinMaxScaler
+import math
+
 
 import streamlit as st
 import hydralit_components as hc
@@ -79,6 +82,51 @@ def plotCumulative(figsize = (10,3)):
     ax[1].tick_params(axis = 'x', rotation = 45)
     return fig
 
+def games_bracket(competitors = np.repeat('', 12), second_round=np.repeat('', 6), third_round = np.repeat('', 3), bracket_sep = 0.03, fontsize = 8, ax = None):
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    num_competitors = 12
+    y = list(np.linspace(0,1,num_competitors))
+
+    num_rounds = math.ceil(np.sqrt(num_competitors))
+    length = 1/(num_rounds)
+
+    ax.text(-0.05, 1.1, 'Month', ha='right', va='bottom', weight='bold')
+    for i in range(num_competitors):
+        ax.plot([0, length], [y[i], y[i]], 'k-')
+        ax.text(0, y[i], competitors[-(i+1)], ha='left', va='bottom', fontsize = fontsize)
+        ax.text(-0.05, y[i], months[-(i+1)], ha='right', va='bottom', weight='bold')
+        if (i -1) % 2 == 0:
+            #plot connecting lines
+            ax.plot([length, length], [y[i-1], y[i]], 'k-')
+
+            middle = y[i] - (y[i] - y[i-1])/2
+            ax.plot([length, length*2], [middle, middle], 'k-')
+            ax.text(length+0.01, middle, second_round[-(i//2+1)], ha='left', va='bottom', fontsize = fontsize)
+
+        if i in [3,7,11]:
+            middle = y[i] - (y[i] - y[i-1])/2
+            middle_lower = y[i-2] - (y[i-2] - y[i-3])/2
+            ax.plot([length *2, length*2], [middle, middle_lower], 'k-')
+
+            #next bracket
+            middle = y[i] - (y[i] - y[i-3])/2
+            ax.plot([length*2, length*3], [middle, middle], 'k-')
+            ax.text(length*2+0.01, middle, third_round[-(i//4+1)], ha='left', va='bottom', fontsize = fontsize)
+        
+
+    start1 = y[3] - (y[3] - y[0])/2
+    start2 = y[11] - (y[11] - y[8])/2
+    ax.plot([length*3, length*3], [start1, start2], 'k-')
+    winner_start = start2 - (start2-start1)/2
+    ax.plot([length*3, length*4], [winner_start, winner_start], 'k-')
+
+    ax.set_xlim(0, 1)
+    ax.set_ylim(-0.1, 1.1)
+    ax.axis('off')
+    return fig
+
 if 'Results' not in st.session_state:
     st.session_state['Results'] = loadData_results()
 
@@ -91,7 +139,8 @@ st.write("We decided to start trying more games on board game arena and compile 
 menu_data = [
     {'label':"Summary"},
     {'label':"Ratings"},
-    {'label':"Reviews"}
+    {'label':"Reviews"},
+    {'label':"Games of the Month"}
 ]
 
 menu = hc.nav_bar(menu_definition = menu_data, sticky_nav = True, sticky_mode = 'pinned')
@@ -171,11 +220,12 @@ if menu == 'Ratings':
     reviews = st.session_state['Results'][['Game', "Sam's Review", "Gabi's Review"]].set_index('Game')
     st.header('Ratings and Reviews')
 
-    ratings_zscored = (ratings - ratings.mean())/ratings.std()
+    scaler = MinMaxScaler(feature_range = (1, 10))
+    ratings_normed = scaler.fit_transform(ratings)
     ratings['Consensus'] = ratings.mean(axis = 1)
-    ratings['Consensus Z-Score'] = ratings_zscored.mean(axis = 1)
+    ratings['Consensus Normed'] = ratings_normed.mean(axis = 1)
 
-    sorting_ratings = ratings['Consensus Z-Score'].sort_values(ascending = False)
+    sorting_ratings = ratings['Consensus Normed'].sort_values(ascending = False)
     ranked_list = ''
     current_rank = 1
     unique_ratings = sorting_ratings.unique()
@@ -267,3 +317,68 @@ if menu == 'Reviews':
     col2.subheader("Gabi's Review")
     col2.write(f"Rating = " + str(game_data["Gabi's Rating"]))
     col2.write(game_data["Gabi's Review"])
+
+if menu == 'Games of the Month':
+    st.header('Games of the Month Bracket')
+    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    st.subheader('Sam')
+    cols = st.columns(2)
+    #Sam's Games of the Month
+    competitors = ['Obsession', 'Innovation', 'Mandala', 'Feast for Odin', 'Faraway', 'Maracaibo', 'Hardback','Draft & Write Records','','','','']
+    second_round = ['Innovation', 'Mandala', 'Maracaibo', 'Draft & Write Records' , '', '']
+    third_round = ['Innovation', 'Maracaibo', '']
+
+    cols[0].write('Most Favorite')
+    fig = games_bracket(competitors = competitors, second_round = second_round, third_round = third_round)
+    cols[0].pyplot(fig)
+
+    #Sam's Least Favorite Games of the Month
+    competitors = ['Cosmos: Empires', 'Barenpark', 'Mini Rogue', 'Bombay', 'Boreal', 'Isle of Trains: All Aboard', 'Gang of Dice','Amazonas','','','','']
+    second_round = ['Barenpark', 'Bombay', 'Boreal', 'Amazonas' , '', '']
+    third_round = ['Bombay', 'Amazonas', '']
+
+    cols[1].write('Least Favorite')
+    fig = games_bracket(competitors = competitors, second_round = second_round, third_round = third_round)
+    cols[1].pyplot(fig)
+
+
+    st.subheader('Gabi')
+    cols = st.columns(2)
+    #Gabi's Games of the Month
+    competitors = ['Puerto Rico', '7 Wonders: Duel', 'Mandala', 'Framework', 'Century Spice Road', 'Sobek', 'Tash Kalar','Draft & Write Records','','','','']
+    second_round = ['Puerto Rico', 'Framework', 'Sobek', 'Draft & Write Records' , '', '']
+    third_round = ['Puerto Rico', 'Draft & Write Records', '']
+
+    cols[0].write('Most Favorite')
+    fig = games_bracket(competitors = competitors, second_round = second_round, third_round = third_round)
+    cols[0].pyplot(fig)
+
+    #Gabi's Least Favorite Games of the Month
+    competitors = ['Caverna', 'Blood Rage', 'Through the Ages', 'Bombay', 'Boreal', 'Flowers (Mandala)', 'Rallyman:Dirt','Amazonas','','','','']
+    second_round = ['Caverna', 'Bombay', 'Boreal', 'Rallyman: Dirt' , '', '']
+    third_round = ['Bombay', 'Rallyman: Dirt', '']
+
+    cols[1].write('Least Favorite')
+    fig = games_bracket(competitors = competitors, second_round = second_round, third_round = third_round)
+    cols[1].pyplot(fig)
+
+    st.subheader('Consensus')
+    cols = st.columns(2)
+    #Consensus Games of the Month
+    competitors = ['Obsession', '7 Wonders: Duel', 'Mandala', 'Feast For Odin', 'Century Spice Road/Faraway', 'Maracaibo', 'Tash Kalar','Draft & Write Records','','','','']
+    second_round = ['7 Wonders: Duel', 'Mandala', 'Maracaibo', 'Draft & Write Records' , '', '']
+    third_round = ['7 Wonders: Duel', 'Draft & Write Records', '']
+
+    cols[0].write('Most Favorite')
+    fig = games_bracket(competitors = competitors, second_round = second_round, third_round = third_round)
+    cols[0].pyplot(fig)
+
+    #Consensus Least Favorite Games of the Month
+    competitors = ['Cosmos: Empires', 'Biomos', 'Mini Rogue', 'Bombay', 'Boreal', 'Captain Flip', 'Rallyman:Dirt','Amazonas','','','','']
+    second_round = ['Biomos', 'Bombay', 'Boreal', 'Amazonas' , '', '']
+    third_round = ['Bombay', 'Amazonas', '']
+
+    cols[1].write('Least Favorite')
+    fig = games_bracket(competitors = competitors, second_round = second_round, third_round = third_round)
+    cols[1].pyplot(fig)
