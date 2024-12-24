@@ -6,3 +6,4 @@ beautifulsoup4==4.12.*
 #shillelagh[gsheetsapi]
 hydralit-components==1.0.*
 gspread==6.1.*
+scikit-learn
