@@ -48,7 +48,7 @@ def get_thumbnail(game):
         return None
     
 @st.cache_data(ttl=300)
-def calculateCumulative(column = 'Who Won'):
+def calculateCumulative(column = 'Who Won?'):
     #get number of wins
     plot_data = st.session_state['Results'].copy()
     
@@ -64,8 +64,8 @@ def calculateCumulative(column = 'Who Won'):
 def plotCumulative(figsize = (10,3)):
 
     #get number of wins and games chosen
-    win_data = calculateCumulative(column = 'Who Won')
-    chose_data = calculateCumulative(column = 'Who Chose')
+    win_data = calculateCumulative(column = 'Who Won?')
+    chose_data = calculateCumulative(column = 'Who Chose?')
 
         
     fig, ax = plt.subplots(figsize = figsize, nrows = 2, sharex = True, sharey=True)
@@ -80,6 +80,7 @@ def plotCumulative(figsize = (10,3)):
     ax[0].legend(bbox_to_anchor = (0.55, 1.08), ncol = 2)
     ax[1].set_ylabel('Games Chosen')
     ax[1].tick_params(axis = 'x', rotation = 45)
+    ax[1].set_xticks([])
     return fig
 
 def games_bracket(competitors = np.repeat('', 12), second_round=np.repeat('', 6), third_round = np.repeat('', 3), bracket_sep = 0.03, fontsize = 8, ax = None):
@@ -151,8 +152,8 @@ if menu == 'Summary':
         #write the overall wins
     col1, col2, col3 = st.columns(3)
     col1.metric("Games Played", st.session_state['Results'].shape[0], st.session_state['Results'].shape[0])
-    col2.metric("Sam's Wins", st.session_state['Results'][st.session_state['Results']['Who Won'] == 'Sam'].shape[0], 0)
-    col3.metric("Gabi's Wins", st.session_state['Results'][st.session_state['Results']['Who Won'] == 'Gabi'].shape[0], 0)
+    col2.metric("Sam's Wins", st.session_state['Results'][st.session_state['Results']['Who Won?'] == 'Sam'].shape[0], 0)
+    col3.metric("Gabi's Wins", st.session_state['Results'][st.session_state['Results']['Who Won?'] == 'Gabi'].shape[0], 0)
     finished = st.session_state['Results'].sort_values('When finished', ascending = False).iloc[0]
 
     #st.header('Games played each month')
@@ -168,7 +169,7 @@ if menu == 'Summary':
     month = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
     num_per_month = num_per_month.loc[[m for m in month if m in num_per_month.index]]
 
-    fig, ax = plt.subplots(figsize = (10, 2.5))
+    fig, ax = plt.subplots(figsize = (15, 2.5))
     ax.bar(num_per_month.index, num_per_month.values, color = 'gray', edgecolor = 'black', width = 1)
     ax.tick_params(axis = 'x', rotation = 0)
     ax.set_ylabel('Number of\nGames Played')
@@ -204,7 +205,7 @@ if menu == 'Summary':
         col1.image(st.session_state['thumbnail'])
     else:
         col1.write("No Thumbnail Found,\ncheck name to make sure it matches BGG")
-    col1.write(f"{finished['Who Won']} Won!")
+    col1.write(f"{finished['Who Won?']} Won!")
     col2.subheader("Sam's Review")
     col2.write("Rating = "+ str(finished["Sam's Rating"]))
     col2.write(finished["Sam's Review"])
@@ -217,6 +218,8 @@ if menu == 'Summary':
 
 if menu == 'Ratings':
     ratings = st.session_state['Results'][['Game', "Sam's Rating", "Gabi's Rating"]].set_index('Game')
+    ratings = ratings[(ratings["Sam's Rating"] != '') & (ratings["Gabi's Rating"] != '')]
+    ratings = ratings.astype({'Sam\'s Rating': 'float', 'Gabi\'s Rating': 'float'})
     reviews = st.session_state['Results'][['Game', "Sam's Review", "Gabi's Review"]].set_index('Game')
     st.header('Ratings and Reviews')
 
@@ -325,8 +328,8 @@ if menu == 'Games of the Month':
     st.subheader('Sam')
     cols = st.columns(2)
     #Sam's Games of the Month
-    competitors = ['Obsession', 'Innovation', 'Mandala', 'Feast for Odin', 'Faraway', 'Maracaibo', 'Hardback','Draft & Write Records','','','','']
-    second_round = ['Innovation', 'Mandala', 'Maracaibo', 'Draft & Write Records' , '', '']
+    competitors = ['Obsession', 'Innovation', 'Mandala', 'Feast for Odin', 'Faraway', 'Maracaibo', 'Hardback','Draft & Write Records','Unrest','Federation','Cosmoctopus','']
+    second_round = ['Innovation', 'Mandala', 'Maracaibo', 'Draft & Write Records' , 'Federation', '']
     third_round = ['Innovation', 'Maracaibo', '']
 
     cols[0].write('Most Favorite')
@@ -334,9 +337,9 @@ if menu == 'Games of the Month':
     cols[0].pyplot(fig)
 
     #Sam's Least Favorite Games of the Month
-    competitors = ['Cosmos: Empires', 'Barenpark', 'Mini Rogue', 'Bombay', 'Boreal', 'Isle of Trains: All Aboard', 'Gang of Dice','Amazonas','','','','']
-    second_round = ['Barenpark', 'Bombay', 'Boreal', 'Amazonas' , '', '']
-    third_round = ['Bombay', 'Amazonas', '']
+    competitors = ['Cosmos: Empires', 'Barenpark', 'Mini Rogue', 'Bombay', 'Boreal', 'Isle of Trains: All Aboard', 'Gang of Dice','Amazonas','Festival','61 Autumn Leaves','Incan Gold','Umbrellas']
+    second_round = ['Barenpark', 'Bombay', 'Boreal', 'Amazonas' , '61 Autumn Leaves', 'Incan Gold']
+    third_round = ['Bombay', 'Amazonas', 'Incan Gold']
 
     cols[1].write('Least Favorite')
     fig = games_bracket(competitors = competitors, second_round = second_round, third_round = third_round)
@@ -346,8 +349,8 @@ if menu == 'Games of the Month':
     st.subheader('Gabi')
     cols = st.columns(2)
     #Gabi's Games of the Month
-    competitors = ['Puerto Rico', '7 Wonders: Duel', 'Mandala', 'Framework', 'Century Spice Road', 'Sobek', 'Tash Kalar','Draft & Write Records','','','','']
-    second_round = ['Puerto Rico', 'Framework', 'Sobek', 'Draft & Write Records' , '', '']
+    competitors = ['Puerto Rico', '7 Wonders: Duel', 'Mandala', 'Framework', 'Century Spice Road', 'Sobek', 'Tash Kalar','Draft & Write Records','Medina','Dice Summoner','Cosmoctopus','']
+    second_round = ['Puerto Rico', 'Framework', 'Sobek', 'Draft & Write Records' , 'Dice Summoner', '']
     third_round = ['Puerto Rico', 'Draft & Write Records', '']
 
     cols[0].write('Most Favorite')
@@ -355,8 +358,8 @@ if menu == 'Games of the Month':
     cols[0].pyplot(fig)
 
     #Gabi's Least Favorite Games of the Month
-    competitors = ['Caverna', 'Blood Rage', 'Through the Ages', 'Bombay', 'Boreal', 'Flowers (Mandala)', 'Rallyman:Dirt','Amazonas','','','','']
-    second_round = ['Caverna', 'Bombay', 'Boreal', 'Rallyman: Dirt' , '', '']
+    competitors = ['Caverna', 'Blood Rage', 'Through the Ages', 'Bombay', 'Boreal', 'Flowers (Mandala)', 'Rallyman:Dirt','Amazonas','Targi','Architects of the West Kingdom','Incan Gold','']
+    second_round = ['Caverna', 'Bombay', 'Boreal', 'Rallyman: Dirt' , 'Architects of the West Kingdom', '']
     third_round = ['Bombay', 'Rallyman: Dirt', '']
 
     cols[1].write('Least Favorite')
@@ -366,8 +369,8 @@ if menu == 'Games of the Month':
     st.subheader('Consensus')
     cols = st.columns(2)
     #Consensus Games of the Month
-    competitors = ['Obsession', '7 Wonders: Duel', 'Mandala', 'Feast For Odin', 'Century Spice Road/Faraway', 'Maracaibo', 'Tash Kalar','Draft & Write Records','','','','']
-    second_round = ['7 Wonders: Duel', 'Mandala', 'Maracaibo', 'Draft & Write Records' , '', '']
+    competitors = ['Obsession', '7 Wonders: Duel', 'Mandala', 'Feast For Odin', 'Century Spice Road/Faraway', 'Maracaibo', 'Tash Kalar','Draft & Write Records','Medina','Dice Summoner','','']
+    second_round = ['7 Wonders: Duel', 'Mandala', 'Maracaibo', 'Draft & Write Records' , 'Dice Summoner', '']
     third_round = ['7 Wonders: Duel', 'Draft & Write Records', '']
 
     cols[0].write('Most Favorite')
@@ -375,9 +378,9 @@ if menu == 'Games of the Month':
     cols[0].pyplot(fig)
 
     #Consensus Least Favorite Games of the Month
-    competitors = ['Cosmos: Empires', 'Biomos', 'Mini Rogue', 'Bombay', 'Boreal', 'Captain Flip', 'Rallyman:Dirt','Amazonas','','','','']
-    second_round = ['Biomos', 'Bombay', 'Boreal', 'Amazonas' , '', '']
-    third_round = ['Bombay', 'Amazonas', '']
+    competitors = ['Cosmos: Empires', 'Biomos', 'Mini Rogue', 'Bombay', 'Boreal', 'Captain Flip', 'Rallyman:Dirt','Amazonas','Targi','Aniversus','Incan Gold','']
+    second_round = ['Biomos', 'Bombay', 'Boreal', 'Amazonas' , 'Aniversus', 'Incan Gold']
+    third_round = ['Bombay', 'Amazonas', 'Incan Gold']
 
     cols[1].write('Least Favorite')
     fig = games_bracket(competitors = competitors, second_round = second_round, third_round = third_round)

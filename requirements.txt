@@ -2,6 +2,7 @@ numpy==1.26.*
 pandas==2.2.*
 matplotlib==3.8.*
 beautifulsoup4==4.12.*
-shillelagh==1.2.*
-shillelagh[gsheetsapi]
+#shillelagh==1.2.*
+#shillelagh[gsheetsapi]
 hydralit-components==1.0.*
+gspread==6.1.*

@@ -1,25 +1,41 @@
 import pandas as pd 
 import numpy as np
 import streamlit as st
-from shillelagh.backends.apsw.db import connect
+#from shillelagh.backends.apsw.db import connect
+import gspread
+
+#@st.cache_data(ttl = 600)
+#def runQuery(sheets_link):
+
+#    connection = connect(":memory:", adapters = 'gsheetsapi')
+#    cursor = connection.cursor()
+    
+#    query = f'SELECT * FROM "{sheets_link}"'
+
+#    query_results = []
+#    for row in cursor.execute(query):
+#        query_results.append(row)
+#    return query_results
+
 
 @st.cache_data(ttl = 600)
-def runQuery(sheets_link):
-
-    connection = connect(":memory:", adapters = 'gsheetsapi')
-    cursor = connection.cursor()
-    
-    query = f'SELECT * FROM "{sheets_link}"'
-
-    query_results = []
-    for row in cursor.execute(query):
-        query_results.append(row)
-    return query_results
+def runQuery(api_key, sheets_key, sheet_name = 'Sheet1', expected_headers = ['Game', 'When started']):
+    gc = gspread.api_key(api_key)
+    sh = gc.open_by_key(sheets_key)
+    results = pd.DataFrame(sh.worksheet(sheet_name).get_all_records(expected_headers = expected_headers))
+    return results
 
 def loadData_results():
-    sheets_query = runQuery(st.secrets['results_url'])
-    results = pd.DataFrame(sheets_query, columns = ['Game', 'When started', 'When finished', 'Type of Game', "Sam's Rating", "Sam's Review", "Gabi's Rating", "Gabi's Review", 'Who Won', 'Who Chose', 'Are they the same', 'Variants'])
-    results = results.dropna(subset = 'Are they the same')
+    #sheets_query = runQuery(st.secrets['results_url'])
+    results = runQuery(st.secrets['api_key'], st.secrets['results_key'], sheet_name = '2024_BGA_Journey')
+    #only grab entries related to games
+    for i, val in enumerate(results['Game'] == ''):
+        if val:
+            game_end = i
+            break
+    results = results.iloc[:game_end]
+    results = results.astype({'When finished': 'datetime64[ns]', 'When started': 'datetime64[ns]'})
+    #results = results.dropna(subset = 'Are they the same')
     return results
  
 
