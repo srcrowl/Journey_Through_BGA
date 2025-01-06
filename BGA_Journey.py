@@ -50,13 +50,17 @@ def get_thumbnail(game):
 @st.cache_data(ttl=300)
 def calculateCumulative(column = 'Who Won?'):
     #get number of wins
-    plot_data = st.session_state['Results'].copy()
+    plot_data = st.session_state[f'{year} Results'].copy()
     
     plot_data['value'] = 1
     plot_data = plot_data.groupby([column, 'When finished'])['value'].sum().reset_index()
     plot_data = plot_data.pivot(columns = column, index = 'When finished', values = 'value')
     plot_data = plot_data.replace(np.nan, 0)
     plot_data = plot_data.cumsum()
+    if 'Sam' not in plot_data.columns:
+        plot_data['Sam'] = 0
+    if 'Gabi' not in plot_data.columns:
+        plot_data['Gabi'] = 0
     plot_data = plot_data[['Sam', 'Gabi']]
     return plot_data
 
@@ -128,8 +132,10 @@ def games_bracket(competitors = np.repeat('', 12), second_round=np.repeat('', 6)
     ax.axis('off')
     return fig
 
-if 'Results' not in st.session_state:
-    st.session_state['Results'] = loadData_results()
+
+year = st.selectbox('Select the year to view', ['2025', '2024'], index = 0)
+if f'{year} Results' not in st.session_state:
+    st.session_state[f'{year} Results'] = loadData_results(year=year)
 
 st.title('2024 Board Game Arena Journey: Race to 100 games')
 
@@ -151,14 +157,14 @@ if menu == 'Summary':
 
         #write the overall wins
     col1, col2, col3 = st.columns(3)
-    col1.metric("Games Played", st.session_state['Results'].shape[0], st.session_state['Results'].shape[0])
-    col2.metric("Sam's Wins", st.session_state['Results'][st.session_state['Results']['Who Won?'] == 'Sam'].shape[0], 0)
-    col3.metric("Gabi's Wins", st.session_state['Results'][st.session_state['Results']['Who Won?'] == 'Gabi'].shape[0], 0)
-    finished = st.session_state['Results'].sort_values('When finished', ascending = False).iloc[0]
+    col1.metric("Games Played", st.session_state[f'{year} Results'].shape[0], st.session_state[f'{year} Results'].shape[0])
+    col2.metric("Sam's Wins", st.session_state[f'{year} Results'][st.session_state[f'{year} Results']['Who Won?'] == 'Sam'].shape[0], 0)
+    col3.metric("Gabi's Wins", st.session_state[f'{year} Results'][st.session_state[f'{year} Results']['Who Won?'] == 'Gabi'].shape[0], 0)
+    finished = st.session_state[f'{year} Results'].sort_values('When finished', ascending = False).iloc[0]
 
     #st.header('Games played each month')
 
-    results = st.session_state['Results'].dropna(subset = 'When finished').copy()
+    results = st.session_state[f'{year} Results'].dropna(subset = 'When finished').copy()
     results['When finished'] = pd.to_datetime(results['When finished'])
     results['Month of Play'] = results['When finished'].dt.month
     month_dict = {1: 'January', 2: 'February', 3: 'March', 4:'April',5:'May',6:'June',7:'July', 8:'August', 9:'September', 10:'October', 11:'November', 12:'December'}
@@ -194,7 +200,7 @@ if menu == 'Summary':
 
 
     st.header(f"Our Most Recent Game = {finished['Game']}")
-    playing = ';'.join(st.session_state['Results'][st.session_state['Results']['When finished'].isna()]['Game'].values)
+    playing = ';'.join(st.session_state[f'{year} Results'][st.session_state[f'{year} Results']['When finished'].isna()]['Game'].values)
     col1, col2, col3 = st.columns(3)
 
     #get the game id from boardgamegeek to extract the thumbnail
@@ -217,10 +223,10 @@ if menu == 'Summary':
 
 
 if menu == 'Ratings':
-    ratings = st.session_state['Results'][['Game', "Sam's Rating", "Gabi's Rating"]].set_index('Game')
+    ratings = st.session_state[f'{year} Results'][['Game', "Sam's Rating", "Gabi's Rating"]].set_index('Game')
     ratings = ratings[(ratings["Sam's Rating"] != '') & (ratings["Gabi's Rating"] != '')]
     ratings = ratings.astype({'Sam\'s Rating': 'float', 'Gabi\'s Rating': 'float'})
-    reviews = st.session_state['Results'][['Game', "Sam's Review", "Gabi's Review"]].set_index('Game')
+    reviews = st.session_state[f'{year} Results'][['Game', "Sam's Review", "Gabi's Review"]].set_index('Game')
     st.header('Ratings and Reviews')
 
     scaler = MinMaxScaler(feature_range = (1, 10))
@@ -303,7 +309,7 @@ if menu == 'Ratings':
 
 if menu == 'Reviews':
     st.header('Reviews')
-    games_with_reviews = st.session_state['Results'][~st.session_state['Results']["Sam's Review"].isna()]
+    games_with_reviews = st.session_state[f'{year} Results'][~st.session_state[f'{year} Results']["Sam's Review"].isna()]
     game_to_explore = st.selectbox('Pick a game to see our reviews!', games_with_reviews['Game'].unique())
 
     game_data = games_with_reviews[games_with_reviews['Game'] == game_to_explore].iloc[0]

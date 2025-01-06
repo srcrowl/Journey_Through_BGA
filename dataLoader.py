@@ -25,9 +25,13 @@ def runQuery(api_key, sheets_key, sheet_name = 'Sheet1', expected_headers = ['Ga
     results = pd.DataFrame(sh.worksheet(sheet_name).get_all_records(expected_headers = expected_headers))
     return results
 
-def loadData_results():
+def loadData_results(year):
     #sheets_query = runQuery(st.secrets['results_url'])
-    results = runQuery(st.secrets['api_key'], st.secrets['results_key'], sheet_name = '2024_BGA_Journey')
+    if year != '2025':
+        sheet_name = f'{year}_BGA_Journey [Archived]'
+    else:
+        sheet_name = f'{year}_BGA_Journey'
+    results = runQuery(st.secrets['api_key'], st.secrets['results_key'], sheet_name = sheet_name)
     #only grab entries related to games
     for i, val in enumerate(results['Game'] == ''):
         if val:
